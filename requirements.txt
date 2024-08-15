@@ -1,0 +1,14 @@
+openvino>=2023.1.0
+paddlepaddle>=2.5.1
+pyclipper>=1.2.1
+shapely>=1.7.1
+ipywidgets
+numpy
+IPython
+ultralytics
+opencv-python
+pillow
+psutil
+fastapi
+uvicorn
+python-multipart
