@@ -1,8 +1,7 @@
 import psutil
 import cv2
 import time
-from plate_det_yolo import plate_det_yolo
-from text_det_yolo import text_det_yolo
+from plate_and_text_detection import plate_and_text_detection
 import pre_post_processing as processing
 from image_process import prep_for_rec, batch_text_box
 from ultralytics import YOLO
@@ -17,7 +16,7 @@ import re
 
 # Assuming you have the necessary imports for your models and processing utilities
 
-def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, plate_det_model = '', txt_det_model = '', rec_compiled_model = '', rec_output_layer = ''):
+def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, txt_plate_det_model = '', rec_compiled_model = '', rec_output_layer = ''):
     """
     Perform PaddleOCR inference on a single image.
 
@@ -56,23 +55,23 @@ def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, plate_det_mode
 
         # Preprocess the image for text detection.
       
-        frame, plate_coor = plate_det_yolo(plate_det_model, img)
-        print(plate_coor)
-        if not plate_coor:
-            cv2.putText(img, str("Loi plate detection"), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
-            return img
+        # frame, plate_coor = plate_det_yolo(plate_det_model, img)
+        # print(plate_coor)
+        # if not plate_coor:
+        #     cv2.putText(img, str("Loi plate detection"), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
+        #     return img
 
    
-        if len(plate_coor) == 4:
-            x1, y1, x2, y2 = plate_coor
-            cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 3)
+        # if len(plate_coor) == 4:
+        #     x1, y1, x2, y2 = plate_coor
+        #     cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 3)
         
             
-        yolo_plate_time = time.time()
-        print(f"Yolo plate detection time: {yolo_plate_time - start_time}")
-        # If the frame is larger than full HD, reduce size to improve the performance.
+        # yolo_plate_time = time.time()
+        # print(f"Yolo plate detection time: {yolo_plate_time - start_time}")
+        # # If the frame is larger than full HD, reduce size to improve the performance.
 
-        txt_img, txt_boxx = text_det_yolo(txt_det_model, frame)
+        txt_img, txt_boxx = plate_and_text_detection(txt_plate_det_model, img)
 
         if not txt_boxx:
           
@@ -80,18 +79,18 @@ def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, plate_det_mode
             return img
         
 
-        x_offset, y_offset = plate_coor[0], plate_coor[1]
-        adjusted_boxes = [box + np.array([x_offset, y_offset]) for box in txt_boxx]
+        # x_offset, y_offset = plate_coor[0], plate_coor[1]
+        # adjusted_boxes = [box + np.array([x_offset, y_offset]) for box in txt_boxx]
 
         
 
-        for box in adjusted_boxes:
-            box = box.astype(int)  # Convert coordinates to integers
-            cv2.polylines(img, [box], isClosed=True, color=(255, 0, 0), thickness=2)
+        # for box in adjusted_boxes:
+        #     box = box.astype(int)  # Convert coordinates to integers
+        #     cv2.polylines(img, [box], isClosed=True, color=(255, 0, 0), thickness=2)
 
 
-        yolo_text_time = time.time()
-        print(f"Yolo text detection time: {yolo_text_time - yolo_plate_time}")
+        # yolo_text_time = time.time()
+        # print(f"Yolo text detection time: {yolo_text_time - yolo_plate_time}")
      
         batch_num = 6
         img_crop_list, img_num, indices = prep_for_rec(txt_boxx, txt_img)
@@ -120,13 +119,13 @@ def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, plate_det_mode
                 txts = [rec_res[i][0] for i in range(len(rec_res))]
                 scores = [rec_res[i][1] for i in range(len(rec_res))]
 
-        if not txts:
-            return ["Loi text recog"], plate_coor, txt_boxx, img
+        # if not txts:
+        #     return ["Loi text recog"], plate_coor, txt_boxx, img
 
         
         print(txts)
         ocr_time = time.time()
-        print(f"OCR recognition time: {ocr_time - yolo_text_time}")
+        # print(f"OCR recognition time: {ocr_time - yolo_text_time}")
         stop_time = time.time()
         processing_time_det = stop_time - start_time
         print(processing_time_det)
@@ -216,3 +215,32 @@ def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, plate_det_mode
 # cv2.imshow("Prediction", frame)
 # cv2.waitKey(0)
 # cv2.destroyAllWindows()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# if class_id == 0:  # Check if class_id is 1
+            #     # flag = True
+            #     # x1, y1, x2, y2 = max(0, int(box[0]-pd)), max(0, int(box[1]-pd)), int(box[2]+pd), int(box[3]+pd)
+            #     plate_coor = max(0, int(box[0]-pd)), max(0, int(box[1]-pd)), int(box[2]+pd), int(box[3]+pd)
+            #     for box, class_id in zip(xyxy, class_ids):
+            #         txt_coor = max(0, int(box[0]-tpd)), max(0, int(box[1]-tpd)), int(box[2]+tpd), int(box[3]+tpd)
+
+            #         if class_id == 1 and contains_bbox(plate_coor, txt_coor):
+            #             x1, y1, x2, y2 = txt_coor
+            #             ar = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype='float32')
+            #             boxx.append(ar)
+
+            # return img_cv2, boxx

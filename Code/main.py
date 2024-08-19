@@ -21,7 +21,7 @@ device = widgets.Dropdown(
     disabled=False,
 )
 
-rec_model_file_path = "../Text_reg/text_rec_newest.xml"
+rec_model_file_path = "/home/os/techpro/Plate-Recognition/Text_reg/text_rec_newest.xml"
 
 # Read the model and corresponding weights from a file.
 rec_model = core.read_model(model=rec_model_file_path)
@@ -40,8 +40,8 @@ rec_output_layer = rec_compiled_model.output(0)
 def run_paddle_ocr_folder(input_folder, output_folder, rec_compiled_model = '', rec_output_layer = ''):
     true_texts = []
     predicted_texts = []
-    plate_det_model = YOLO('../best_openvino_model_det_plate/best_openvino_model_newest')
-    txt_det_model = YOLO('../best_openvino_model_text_det/best_openvino_model_new')
+    # plate_det_model = YOLO('../best_openvino_model_det_plate/best_openvino_model_newest')
+    txt_plate_det_model = YOLO('/home/os/techpro/Plate-Recognition/text_plate_det/best_openvino_model')
 
     
     if not os.path.exists(output_folder):
@@ -52,7 +52,7 @@ def run_paddle_ocr_folder(input_folder, output_folder, rec_compiled_model = '', 
         frame = cv2.imread(image_path)
 
       
-        img = run_paddle_ocr_single_image_ver2(image_path, use_popup=False, plate_det_model = plate_det_model, txt_det_model = txt_det_model, rec_compiled_model= rec_compiled_model, rec_output_layer= rec_output_layer)
+        img = run_paddle_ocr_single_image_ver2(image_path, use_popup=False, txt_plate_det_model = txt_plate_det_model, rec_compiled_model= rec_compiled_model, rec_output_layer= rec_output_layer)
         # predicted_texts.append(txts)
 
 
@@ -86,8 +86,11 @@ def run_paddle_ocr_folder(input_folder, output_folder, rec_compiled_model = '', 
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
         output_image_path = os.path.join(output_folder, image_name)
-        # try:
-        cv2.imwrite(output_image_path, img)
+        try:
+            cv2.imwrite(output_image_path, img)
+        except:
+            cv2.imwrite(output_image_path, frame)
+
         # except cv2.error as e:
         #     print(f"Failed to save '{image_name}': {e}")
            
@@ -95,6 +98,6 @@ def run_paddle_ocr_folder(input_folder, output_folder, rec_compiled_model = '', 
     return true_texts, predicted_texts
 
 
-input_folder = "../image2"
-output_folder = "../Output_imgs"
+input_folder = "/home/os/techpro/Plate-Recognition/capture-img"
+output_folder = "/home/os/techpro/Plate-Recognition/Output_imgs"
 true_texts, predicted_texts = run_paddle_ocr_folder(input_folder, output_folder, rec_compiled_model= rec_compiled_model, rec_output_layer= rec_output_layer)
