@@ -13,6 +13,139 @@ import numpy as np
 import re
 
 
+def apply_contrast_enhancement(image):
+    """
+    Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) for contrast enhancement.
+    This function handles both grayscale and BGR images.
+    """
+    try:
+        if len(image.shape) == 2:  # Image is already grayscale
+            gray = image
+        elif len(image.shape) == 3 and image.shape[2] == 3:  # Image is BGR
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            raise ValueError("Unsupported image format. The image must be either a 2D grayscale or a 3-channel BGR image.")
+
+        print(f"Gray image shape: {gray.shape}")
+        print(f"Gray image dtype: {gray.dtype}")
+
+        # Apply CLAHE
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(gray)
+
+        # If the model expects a BGR image, convert grayscale back to BGR
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            enhanced = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR)
+
+        print(f"Enhanced image shape: {enhanced.shape}")
+        return enhanced
+    except Exception as e:
+        print(f"Error during contrast enhancement: {e}")
+        return None
+
+def apply_skew_correction(image):
+    """
+    Correct skew in the image using edge detection and affine transformation.
+    """
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+    
+    # Use HoughLines to find the most dominant line (which should align with the plate)
+    lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
+    if lines is not None:
+        for rho, theta in lines[0]:
+            angle = (theta - np.pi / 2) * 180 / np.pi  # Calculate angle relative to vertical
+            (h, w) = image.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            image = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    return image
+
+
+
+
+def apply_thresholding(image):
+    """
+    Apply adaptive thresholding to binarize the image.
+    Converts the image to grayscale if it's not already in that format.
+    """
+    # Check if the image is already grayscale
+    if len(image.shape) == 3 and image.shape[2] == 3:
+        # Convert to grayscale
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    elif len(image.shape) == 2:
+        # Image is already grayscale, no need to convert
+        pass
+    else:
+        raise ValueError("Unsupported image format. Image must be either a 2D grayscale or 3-channel BGR image.")
+
+    # Debugging: Print the shape and type of the image
+    print(f"Grayscale image shape: {image.shape}")
+    print(f"Grayscale image dtype: {image.dtype}")
+
+    # Ensure image is of type uint8
+    if image.dtype != 'uint8':
+        image = image.astype('uint8')
+
+    # Apply adaptive thresholding
+    thresholded = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                        cv2.THRESH_BINARY, 11, 2)
+
+    # Debugging: Print the shape of the thresholded image
+    print(f"Thresholded image shape: {thresholded.shape}")
+
+    return thresholded
+
+def prepare_input_for_model(image):
+    """
+    Prepare the image for model input.
+    Adjust dimensions, normalize, or batch the image as required by the model.
+    """
+    # Example: Add batch dimension if the model expects a batch
+    if len(image.shape) == 2:  # Grayscale image
+        image = np.expand_dims(image, axis=0)  # Add batch dimension
+        image = np.expand_dims(image, axis=0)  # Add channel dimension
+    elif len(image.shape) == 3:
+        image = np.expand_dims(image, axis=0)  # Add batch dimension
+    else:
+        raise ValueError("Unexpected image shape for model input preparation.")
+    
+    print(f"Prepared model input shape: {image.shape}")
+    return image
+def extract_char_and_numbers(text):
+    # Regular expression to find a character and capture the last two digits before it
+    pattern =   r'(\d{2})(\D)'
+    
+    # Search for the pattern in the string
+    match = re.search(pattern, text)
+    
+    if match:
+        # Extract the part before the matched pattern and add the result
+        before_pattern = text[:match.start(1)]
+        result = match.group(1) + match.group(2)  # Take last 2 digits and the character
+        return result
+    else:
+        return text
+def modify_string_based_on_digits(text):
+    # Split the string by the dot
+    parts = text.split('.')
+    
+    if len(parts) != 2:
+        return text
+
+    before_dot = parts[0]
+    after_dot = parts[1]
+    
+    if len(before_dot) >= 4:
+        before_dot = before_dot[-1:] 
+    
+    if len(after_dot) >= 3:
+        after_dot = after_dot[:-1] 
+    
+    modified_text = before_dot + '.' + after_dot
+    
+    return modified_text
+
 
 # Assuming you have the necessary imports for your models and processing utilities
 
@@ -44,6 +177,8 @@ def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, txt_plate_det_
         start_time = time.time()
         img = cv2.imread(image_path)
 
+        # img = apply_thresholding(img)
+        # img = prepare_input_for_model(img)
 
         # cv2.imshow("Prediction", img)
         # cv2.waitKey(0)
@@ -73,10 +208,10 @@ def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, txt_plate_det_
 
         txt_img, txt_boxx = plate_and_text_detection(txt_plate_det_model, img)
 
-        if not txt_boxx:
+        # if not txt_boxx:
           
-            cv2.putText(img, str("Loi text detection"), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 5)
-            return img
+        #     cv2.putText(img, str("Loi text detection"), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 5)
+        #     return img
         
 
         # x_offset, y_offset = plate_coor[0], plate_coor[1]
@@ -141,16 +276,31 @@ def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, txt_plate_det_
         # print(txts)
 
         if len(txts) == 2 and bool(re.search(r'[a-zA-Z]', str(txts[1]))):
-            cv2.putText(img, str(txts[1] + " " + txts[0]), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
+            if len(txts[1])> 3:
+                txts[1] = extract_char_and_numbers(txts[1])
+            if len(txts[0])>6:
+                txts[0] = modify_string_based_on_digits(txts[0])                
+            cv2.putText(txt_img, str(txts[1] + " " + txts[0]), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
         elif len(txts) == 2 and bool(re.search(r'[a-zA-Z]', str(txts[0]))):
-            cv2.putText(img, str(txts[0] + " " + txts[1]), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
+            if len(txts[0])> 3:
+                txts[0] = extract_char_and_numbers(txts[0])
+            if len(txts[1])>6:
+                txts[1] = modify_string_based_on_digits(txts[1])
+            cv2.putText(txt_img, str(txts[0] + " " + txts[1]), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
         else:
-            cv2.putText(img, str(txts[0]), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
+            cv2.putText(txt_img, str(txts[0]), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5)
+        
+        # plate_text = ''
+        # for t in txts:
+        #     plate_text += t
+
+        # cv2.putText(img, str(plate_text), (50, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5) 
+        
 
         # cv2.imshow("Prediction", img)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
-        return img
+        return txt_img
     except Exception as e:
         print(f"Error: {e}")
 
@@ -226,21 +376,3 @@ def run_paddle_ocr_single_image_ver2(image_path, use_popup=False, txt_plate_det_
 
 
 
-
-
-
-
-
-# if class_id == 0:  # Check if class_id is 1
-            #     # flag = True
-            #     # x1, y1, x2, y2 = max(0, int(box[0]-pd)), max(0, int(box[1]-pd)), int(box[2]+pd), int(box[3]+pd)
-            #     plate_coor = max(0, int(box[0]-pd)), max(0, int(box[1]-pd)), int(box[2]+pd), int(box[3]+pd)
-            #     for box, class_id in zip(xyxy, class_ids):
-            #         txt_coor = max(0, int(box[0]-tpd)), max(0, int(box[1]-tpd)), int(box[2]+tpd), int(box[3]+tpd)
-
-            #         if class_id == 1 and contains_bbox(plate_coor, txt_coor):
-            #             x1, y1, x2, y2 = txt_coor
-            #             ar = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype='float32')
-            #             boxx.append(ar)
-
-            # return img_cv2, boxx

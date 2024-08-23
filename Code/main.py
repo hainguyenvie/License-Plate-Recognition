@@ -21,7 +21,7 @@ device = widgets.Dropdown(
     disabled=False,
 )
 
-rec_model_file_path = "/home/os/techpro/Plate-Recognition/Text_reg/text_rec_newest.xml"
+rec_model_file_path = "../Text_reg/namhoai96.xml"
 
 # Read the model and corresponding weights from a file.
 rec_model = core.read_model(model=rec_model_file_path)
@@ -41,7 +41,7 @@ def run_paddle_ocr_folder(input_folder, output_folder, rec_compiled_model = '', 
     true_texts = []
     predicted_texts = []
     # plate_det_model = YOLO('../best_openvino_model_det_plate/best_openvino_model_newest')
-    txt_plate_det_model = YOLO('/home/os/techpro/Plate-Recognition/text_plate_det/best_openvino_model')
+    txt_plate_det_model = YOLO('../text_plate_det/best_openvino_model')
 
     
     if not os.path.exists(output_folder):
@@ -49,6 +49,7 @@ def run_paddle_ocr_folder(input_folder, output_folder, rec_compiled_model = '', 
 
     for image_name in os.listdir(input_folder):
         image_path = os.path.join(input_folder, image_name)
+        print(image_path)
         frame = cv2.imread(image_path)
 
       
@@ -98,6 +99,6 @@ def run_paddle_ocr_folder(input_folder, output_folder, rec_compiled_model = '', 
     return true_texts, predicted_texts
 
 
-input_folder = "/home/os/techpro/Plate-Recognition/capture-img"
-output_folder = "/home/os/techpro/Plate-Recognition/Output_imgs"
+input_folder = "../capture-img"
+output_folder = "../Output_imgs"
 true_texts, predicted_texts = run_paddle_ocr_folder(input_folder, output_folder, rec_compiled_model= rec_compiled_model, rec_output_layer= rec_output_layer)
